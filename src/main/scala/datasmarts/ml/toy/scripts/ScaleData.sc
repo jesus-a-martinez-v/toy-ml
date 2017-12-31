@@ -25,15 +25,19 @@ def getDatasetMinAndMax(dataset: Dataset): MinMaxData = {
     Vector.empty
   } else {
     val numberOfColumns = dataset.head.length
+    val columnIndicesRange = (0 until numberOfColumns).toVector
+    val testRow = dataset.head
 
     for {
-      columnIndex <- (0 until numberOfColumns).toVector
-      testRow = dataset.head
+      columnIndex <- columnIndicesRange
     } yield {
       if (isText(testRow(columnIndex))) {
         None
       } else {
-        val columnValues = dataset.map(r => getNumericValue(r(columnIndex)).get).sorted
+        val columnValues = dataset.map { row =>
+          getNumericValue(row(columnIndex)).get
+        }.sorted
+
         val max = columnValues.last
         val min = columnValues.head
 
@@ -43,58 +47,48 @@ def getDatasetMinAndMax(dataset: Dataset): MinMaxData = {
   }
 }
 
-getDatasetMinAndMax(Vector(
-  Vector(Numeric(50), Numeric(30), Text("A")),
-  Vector(Numeric(20), Numeric(90), Text("B")),
-  Vector(Numeric(19), Numeric(90.4), Text("B")),
-))
-
 def normalizeDataset(dataset: Dataset, minMaxes: MinMaxData): Dataset = {
-  val numberOfColumns = dataset.head.length
+  if (dataset.isEmpty) {
+    Vector.empty
+  } else {
+    val numberOfColumns = dataset.head.length
+    val columnIndicesRange = (0 until numberOfColumns).toVector
 
-  for {
-    row <- dataset
-    columnIndicesRange = (0 until numberOfColumns).toVector
-  } yield {
-    columnIndicesRange.map { columnIndex =>
-      val rowData = row(columnIndex)
+    for {
+      row <- dataset
+    } yield {
+      columnIndicesRange.map { columnIndex =>
+        val rowData = row(columnIndex)
 
-      minMaxes(columnIndex) match {
-        case None => rowData
-        case Some((min, max)) =>
-          val rowValue = getNumericValue(rowData).get
-          val normalizedRowValue = (rowValue - min) / (max - min)
+        minMaxes(columnIndex) match {
+          case None => rowData
+          case Some((min, max)) =>
+            val rowValue = getNumericValue(rowData).get
+            val normalizedRowValue = (rowValue - min) / (max - min)
 
-          Numeric(normalizedRowValue)
+            Numeric(normalizedRowValue)
+        }
       }
     }
   }
 }
-
-normalizeDataset(Vector(
-  Vector(Numeric(50), Numeric(30), Text("A")),
-  Vector(Numeric(20), Numeric(90), Text("B")),
-  Vector(Numeric(19), Numeric(90.4), Text("B")),
-), getDatasetMinAndMax(Vector(
-  Vector(Numeric(50), Numeric(30), Text("A")),
-  Vector(Numeric(20), Numeric(90), Text("B")),
-  Vector(Numeric(19), Numeric(90.4), Text("B")),
-)))
 
 def getColumnMeans(dataset: Dataset): StatisticData = {
   if (dataset.isEmpty) {
     Vector.empty
   } else {
     val numberOfColumns = dataset.head.length
+    val testRow = dataset.head
 
     for {
       columnIndex <- (0 until numberOfColumns).toVector
-      testRow = dataset.head
     } yield {
       if (isText(testRow(columnIndex))) {
         None
       } else {
-        val columnValues = dataset.map(r => getNumericValue(r(columnIndex)).get)
+        val columnValues = dataset.map { row =>
+          getNumericValue(row(columnIndex)).get
+        }
         val sum = columnValues.sum
         val count = columnValues.length
 
@@ -109,38 +103,48 @@ def getColumnsStandardDeviations(dataset: Dataset, means: StatisticData): Statis
     Vector.empty
   } else {
     val numberOfColumns = dataset.head.length
+    val testRow = dataset.head
 
     for {
       columnIndex <- (0 until numberOfColumns).toVector
-      testRow = dataset.head
+
     } yield {
       if (isText(testRow(columnIndex))) {
         None
       } else {
         val columnMean = means(columnIndex).get
-        val columnSquaredMeanDifferences = dataset.map(r => math.pow(getNumericValue(r(columnIndex)).get - columnMean, 2))
+        val columnSquaredMeanDifferences = dataset.map { row =>
+          val meanDifference = getNumericValue(row(columnIndex)).get - columnMean
+
+          math.pow(meanDifference, 2)
+        }
         val sum = columnSquaredMeanDifferences.sum
         val count = columnSquaredMeanDifferences.length
+        val variance = sum / (count - 1)
+        val standardDeviation = math.sqrt(variance)
 
-        Some(math.sqrt(sum / (count - 1)))
+        Some(standardDeviation)
       }
     }
   }
 }
 
 def standardizeDataset(dataset: Dataset, means: StatisticData, standardDeviations: StatisticData): Dataset = {
-  val numberOfColumns = dataset.head.length
+  if (dataset.isEmpty) {
+    Vector.empty
+  } else {
+    val numberOfColumns = dataset.head.length
 
-  for {
-    row <- dataset
-    columnIndicesRange = (0 until numberOfColumns).toVector
-  } yield {
-    columnIndicesRange.map { columnIndex =>
-      val rowData = row(columnIndex)
+    for {
+      row <- dataset
+      columnIndicesRange = (0 until numberOfColumns).toVector
+    } yield {
+      columnIndicesRange.map { columnIndex =>
+        val rowData = row(columnIndex)
 
-      if (isText(rowData)) {
-        rowData
-      } else {
+        if (isText(rowData)) {
+          rowData
+        } else {
           val columnMean = means(columnIndex).get
           val columnStandardDeviation = standardDeviations(columnIndex).get
           val rowValue = getNumericValue(rowData).get
@@ -148,28 +152,11 @@ def standardizeDataset(dataset: Dataset, means: StatisticData, standardDeviation
           val standardizedRowValue = (rowValue - columnMean) / columnStandardDeviation
 
           Numeric(standardizedRowValue)
+        }
       }
     }
   }
 }
-
-standardizeDataset(Vector(
-  Vector(Numeric(50), Numeric(30), Text("A")),
-  Vector(Numeric(20), Numeric(90), Text("B")),
-  Vector(Numeric(19), Numeric(90.4), Text("C")),
-), getColumnMeans(Vector(
-  Vector(Numeric(50), Numeric(30), Text("A")),
-  Vector(Numeric(20), Numeric(90), Text("B")),
-  Vector(Numeric(19), Numeric(90.4), Text("C")),
-)), getColumnsStandardDeviations(Vector(
-  Vector(Numeric(50), Numeric(30), Text("A")),
-  Vector(Numeric(20), Numeric(90), Text("B")),
-  Vector(Numeric(19), Numeric(90.4), Text("C")),
-), getColumnMeans(Vector(
-  Vector(Numeric(50), Numeric(30), Text("A")),
-  Vector(Numeric(20), Numeric(90), Text("B")),
-  Vector(Numeric(19), Numeric(90.4), Text("C")),
-))))
 
 // HEADS UP! --> LoadCsv.sc contents replicated here due to Scala Worksheets limitation of importing other worksheet.s
 
