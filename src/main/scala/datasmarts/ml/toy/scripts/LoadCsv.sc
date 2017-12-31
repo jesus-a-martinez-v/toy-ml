@@ -1,4 +1,4 @@
-import com.github.tototoshi.csv._
+import com.github.tototoshi.csv.CSVReader
 
 sealed trait Data
 
