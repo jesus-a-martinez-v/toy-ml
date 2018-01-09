@@ -14,7 +14,7 @@ def recall(actual: Vector[Data], predicted: Vector[Data], positiveLabel: Data): 
 
   val matrix = confusionMatrix(actual, predicted, positiveLabel)
 
-  matrix("TP").toDouble / (matrix("TP") + matrix("FP")).toDouble
+  matrix("TP").toDouble / (matrix("TP") + matrix("FN")).toDouble
 }
 
 
@@ -23,7 +23,7 @@ def precision(actual: Vector[Data], predicted: Vector[Data], positiveLabel: Data
 
   val matrix = confusionMatrix(actual, predicted, positiveLabel)
 
-  matrix("TP").toDouble / (matrix("TP") + matrix("FN")).toDouble
+  matrix("TP").toDouble / (matrix("TP") + matrix("FP")).toDouble
 }
 
 def rootMeanSquaredError(actual: Vector[Numeric], predicted: Vector[Numeric]): Double = {
