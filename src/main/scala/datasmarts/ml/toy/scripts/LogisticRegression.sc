@@ -438,9 +438,6 @@ def simpleLinearRegression(train: Dataset, test: Dataset) = {
   }
 }
 
-// Heads UP! Previous lines correspond to other scripts' contents.
-// NEW content starts here:
-
 def updatedVector[T](vector: Vector[T], newValue: T, index: Int) = {
   val (firstHalf, secondHalf) = vector.splitAt(index)
   firstHalf ++ Vector(newValue) ++ secondHalf.tail
@@ -486,5 +483,54 @@ def linearRegressionSgd(train: Dataset, test: Dataset, parameters: Parameters) =
 
   test.map { row =>
     predictLinearRegression(row, coefficients)
+  }
+}
+
+// Heads UP! Previous lines correspond to other scripts' contents.
+// NEW content starts here:
+
+def predictLogisticRegression(row: Vector[Data], coefficients: Vector[Double]): Double = {
+  val indices = row.indices.init
+
+  val yHat = indices.foldLeft(0.0) { (accumulator, index) =>
+    accumulator + coefficients(index + 1) * getNumericValue(row(index)).get
+  } + coefficients.head
+
+  1.0 / (1.0 + math.exp(-yHat))
+}
+
+def coefficientsLogisticRegressionSgd(train: Dataset, learningRate: Double, numberOfEpochs: Int) = {
+  var coefficients = Vector.fill(train.head.length)(0.0)
+
+  for {
+    _ <- 1 to numberOfEpochs
+    row <- train
+    predicted = predictLogisticRegression(row, coefficients)
+    actual = getNumericValue(row.last).get
+    error = predicted - actual
+  } {
+    // TODO Bias?
+    val firstCoefficient = coefficients.head + learningRate * error * predicted * (1.0 - predicted)
+    val indices = row.indices.init
+
+    val remainingCoefficients = indices.foldLeft(coefficients) { (c, index) =>
+      val actual = getNumericValue(row(index)).get
+      updatedVector(c, c(index + 1) + learningRate * error * predicted * (1.0 - predicted) * actual, index + 1)
+    }
+
+    coefficients = Vector(firstCoefficient) ++ remainingCoefficients
+  }
+
+  coefficients
+}
+
+def logisticRegression(train: Dataset, test: Dataset, parameters: Parameters) = {
+  val learningRate = parameters("learningRate").asInstanceOf[Double]
+  val numberOfEpochs = parameters("numberOfEpochs").asInstanceOf[Int]
+
+  val coefficients = coefficientsLogisticRegressionSgd(train, learningRate, numberOfEpochs)
+
+  test.map { row =>
+    math.round(predictLogisticRegression(row, coefficients))
   }
 }

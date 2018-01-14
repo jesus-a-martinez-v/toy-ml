@@ -416,7 +416,7 @@ def covariance(x: Vector[Numeric], y: Vector[Numeric], meanX: Double, meanY: Dou
   }
 }
 
-def coefficients(dataset: Dataset) = {
+def weights(dataset: Dataset) = {
   val x = selectColumn(dataset, 0).map(d => Numeric(getNumericValue(d).get))
   val y = selectColumn(dataset, 1).map(d => Numeric(getNumericValue(d).get))
 
@@ -431,15 +431,12 @@ def coefficients(dataset: Dataset) = {
 
 
 def simpleLinearRegression(train: Dataset, test: Dataset) = {
-  val (b0, b1) = coefficients(train)
+  val (b0, b1) = weights(train)
 
   test.map { case Vector(data, _) =>
     b0 + b1 * getNumericValue(data).get
   }
 }
-
-// Heads UP! Previous lines correspond to other scripts' contents.
-// NEW content starts here:
 
 def updatedVector[T](vector: Vector[T], newValue: T, index: Int) = {
   val (firstHalf, secondHalf) = vector.splitAt(index)
@@ -486,5 +483,100 @@ def linearRegressionSgd(train: Dataset, test: Dataset, parameters: Parameters) =
 
   test.map { row =>
     predictLinearRegression(row, coefficients)
+  }
+}
+
+def predictLogisticRegression(row: Vector[Data], coefficients: Vector[Double]): Double = {
+  val indices = row.indices.init
+
+  val yHat = indices.foldLeft(0.0) { (accumulator, index) =>
+    accumulator + coefficients(index + 1) * getNumericValue(row(index)).get
+  } + coefficients.head
+
+  1.0 / (1.0 + math.exp(-yHat))
+}
+
+def coefficientsLogisticRegressionSgd(train: Dataset, learningRate: Double, numberOfEpochs: Int) = {
+  var coefficients = Vector.fill(train.head.length)(0.0)
+
+  for {
+    _ <- 1 to numberOfEpochs
+    row <- train
+    predicted = predictLogisticRegression(row, coefficients)
+    actual = getNumericValue(row.last).get
+    error = predicted - actual
+  } {
+    // TODO Bias?
+    val firstCoefficient = coefficients.head + learningRate * error * predicted * (1.0 - predicted)
+    val indices = row.indices.init
+
+    val remainingCoefficients = indices.foldLeft(coefficients) { (c, index) =>
+      val actual = getNumericValue(row(index)).get
+      updatedVector(c, c(index + 1) + learningRate * error * predicted * (1.0 - predicted) * actual, index + 1)
+    }
+
+    coefficients = Vector(firstCoefficient) ++ remainingCoefficients
+  }
+
+  coefficients
+}
+
+def logisticRegression(train: Dataset, test: Dataset, parameters: Parameters) = {
+  val learningRate = parameters("learningRate").asInstanceOf[Double]
+  val numberOfEpochs = parameters("numberOfEpochs").asInstanceOf[Int]
+
+  val coefficients = coefficientsLogisticRegressionSgd(train, learningRate, numberOfEpochs)
+
+  test.map { row =>
+    math.round(predictLogisticRegression(row, coefficients))
+  }
+}
+
+// Heads UP! Previous lines correspond to other scripts' contents.
+// NEW content starts here:
+
+def predictWithWeights(row: Vector[Data], weights: Vector[Double]) = {
+  val indices = row.indices.init
+
+  val activation = indices.foldLeft(0.0) { (accumulator, index) =>
+    accumulator + weights(index + 1) * getNumericValue(row(index)).get
+  } + weights.head
+
+  if (activation >= 0.0) 1.0 else 0.0
+}
+
+def trainWeights(train: Dataset, learningRate: Double, numberOfEpochs: Int) = {
+  var weights = Vector.fill(train.head.length)(0.0)
+
+  for {
+    _ <- 1 to numberOfEpochs
+    row <- train
+    predicted = predictWithWeights(row, weights)
+    actual = getNumericValue(row.last).get
+    error = predicted - actual
+  } {
+    // TODO Bias?
+    val firstWeight = weights.head + learningRate * error
+    val indices = row.indices.init
+
+    val remainingWeights = indices.foldLeft(weights) { (w, index) =>
+      val actual = getNumericValue(row(index)).get
+      updatedVector(w, w(index + 1) + learningRate * error * actual, index + 1)
+    }
+
+    weights = Vector(firstWeight) ++ remainingWeights
+  }
+
+  weights
+}
+
+def perceptron(train: Dataset, test: Dataset, parameters: Parameters) = {
+  val learningRate = parameters("learningRate").asInstanceOf[Double]
+  val numberOfEpochs = parameters("numberOfEpochs").asInstanceOf[Int]
+
+  val weights = trainWeights(train, learningRate, numberOfEpochs)
+
+  test.map { row =>
+    predictWithWeights(row, weights)
   }
 }
