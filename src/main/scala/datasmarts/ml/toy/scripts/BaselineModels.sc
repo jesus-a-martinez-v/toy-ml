@@ -7,12 +7,14 @@ case object Median extends Measure
 
 def zeroRuleRegressor(train: Dataset, test: Dataset, measure: Measure = Mean): Vector[Data] = {
   def calculateMean(labels: Vector[Data]) = Numeric {
-    val sum = labels.foldLeft(0.0) { (accum, numericValue) => accum + getNumericValue(numericValue).get }
+    val sum = labels.foldLeft(0.0) {
+      (accum, numericValue) => accum + getNumericValue(numericValue).get
+    }
 
     sum / labels.length
   }
 
-  def calculateMedian(labels: Vector[Data]): Numeric = {
+  def calculateMedian(labels: Vector[Data]) = {
     val sortedLabels = labels.sortBy(getNumericValue(_).get)
     val evenNumberOfLabels = labels.length % 2 == 0
 
@@ -20,7 +22,9 @@ def zeroRuleRegressor(train: Dataset, test: Dataset, measure: Measure = Mean): V
       val splitIndex = labels.length / 2
 
       Numeric {
-        (getNumericValue(sortedLabels(splitIndex - 1)).get + getNumericValue(sortedLabels(splitIndex)).get) /  2
+        val firstCentricValue = getNumericValue(sortedLabels(splitIndex - 1)).get
+        val secondCentricValue = getNumericValue(sortedLabels(splitIndex)).get
+        (firstCentricValue + secondCentricValue) /  2
       }
     } else {
       val medianIndex = labels.length / 2
@@ -28,26 +32,20 @@ def zeroRuleRegressor(train: Dataset, test: Dataset, measure: Measure = Mean): V
     }
   }
 
-  def calculateMode(labels: Vector[Data]): Data = {
+  def calculateMode(labels: Vector[Data]) = {
     labels.groupBy(identity).maxBy(_._2.length)._1
   }
 
   val outputColumn = selectColumn(train, train.head.length - 1)
-  val measure = measure match {
+
+  val measureValue = measure match {
     case Mean => calculateMean(outputColumn)
     case Mode => calculateMode(outputColumn)
     case Median => calculateMedian(outputColumn)
   }
 
-  test.map(row => measure)
+  test.map(row => measureValue)
 }
-
-val trainNumeric: Dataset = Vector(0.23, 144, 0.111, 102, 1).map(value => Vector(Numeric(value)))
-val testNumeric = Vector(0, 1.0, 12).map(value => Vector(Numeric(value)))
-
-println("With mode " + zeroRuleRegressor(trainNumeric, testNumeric, Mode))
-println("With mean " + zeroRuleRegressor(trainNumeric, testNumeric))
-println("With median " + zeroRuleRegressor(trainNumeric, testNumeric, Median))
 
 def zeroRuleClassifier(train: Dataset, test: Dataset): Vector[Data] = {
   val outputColumn = selectColumn(train, train.head.length - 1)
@@ -56,8 +54,6 @@ def zeroRuleClassifier(train: Dataset, test: Dataset): Vector[Data] = {
 
   test.map(row => mode)
 }
-
-val zrc = zeroRuleClassifier(trainCategorical, testCategorical)
 
 def randomAlgorithm(train: Dataset, test: Dataset, seed: Int = 42): Vector[Data] = {
   val random = new Random(seed)
@@ -77,11 +73,6 @@ def selectColumn(dataset: Dataset, index: Int): Vector[Data] = {
   dataset.map(_(index))
 }
 
-val ra = randomAlgorithm(trainCategorical, testCategorical)
-
-val trainCategorical: Dataset = Vector(0, 1, 0, 0, 1).map(value => Vector(Numeric(value)))
-val testCategorical = Vector(0, 1, 1).map(value => Vector(Numeric(value)))
-
 // HEADS UP! --> EvaluationMetrics.sc contents replicated here due to Scala Worksheets limitation of importing other worksheet.s
 
 def f1(actual: Vector[Data], predicted: Vector[Data], positiveLabel: Data): Double = {
@@ -92,8 +83,6 @@ def f1(actual: Vector[Data], predicted: Vector[Data], positiveLabel: Data): Doub
 
   (precisionValue * recallValue) / (precisionValue + recallValue)
 }
-
-f1(Vector(Numeric(1), Numeric(1)), Vector(Numeric(0), Numeric(1)), Numeric(1))
 
 def recall(actual: Vector[Data], predicted: Vector[Data], positiveLabel: Data): Double = {
   assert(actual.length == predicted.length)
@@ -168,8 +157,6 @@ def accuracy(actual: Vector[Data], predicted: Vector[Data]): Double = {
   numberOfCorrectPredictions / numberOfTotalPredictions
 }
 
-accuracy(Vector(Numeric(1.0), Numeric(1.0)), Vector(Numeric(0.0), Numeric(1.0)))
-
 def trainTestSplit(dataset: Dataset, trainProportion: Double = 0.8, seed: Int = 42): (Dataset, Dataset) = {
   val numberOfRowsInTheTrainingSet = (dataset.length * trainProportion).toInt
   val random = new Random(seed)
@@ -178,10 +165,6 @@ def trainTestSplit(dataset: Dataset, trainProportion: Double = 0.8, seed: Int = 
   shuffledDataset.splitAt(numberOfRowsInTheTrainingSet)
 }
 
-val (train, test) = trainTestSplit(Vector(Vector(Numeric(1)), Vector(Numeric(2)), Vector(Numeric(3)), Vector(Numeric(4)), Vector(Numeric(5)), Vector(Numeric(6)), Vector(Numeric(7)), Vector(Numeric(8)), Vector(Numeric(9)), Vector(Numeric(10))))
-train.length
-test.length
-
 def crossValidationSplit(dataset: Dataset, numberOfFolds: Int = 3, seed: Int = 42): Vector[Dataset] = {
   val foldSize = dataset.length / numberOfFolds
   val random = new Random(seed)
@@ -189,9 +172,6 @@ def crossValidationSplit(dataset: Dataset, numberOfFolds: Int = 3, seed: Int = 4
 
   shuffledDataset.grouped(foldSize).toVector
 }
-
-val folds = crossValidationSplit(Vector(Vector(Numeric(1)), Vector(Numeric(2)), Vector(Numeric(3)), Vector(Numeric(4)), Vector(Numeric(5)), Vector(Numeric(6)), Vector(Numeric(7)), Vector(Numeric(8)), Vector(Numeric(9)), Vector(Numeric(10))), 4)
-folds.foreach(println)
 
 type Dataset = Vector[Vector[Data]]
 type MinMaxData = Vector[Option[(Double, Double)]]

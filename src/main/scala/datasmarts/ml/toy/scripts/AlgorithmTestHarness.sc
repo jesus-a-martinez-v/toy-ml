@@ -15,7 +15,7 @@ def loadCsv(filePath: String): Vector[Vector[Data]] = {
     .toVector
 }
 
-def textColumnToNumeric(data: Vector[Vector[Data]], columnIndex: Int) = {
+def textColumnToNumeric(data: Vector[Vector[Data]], columnIndex: Int): Vector[Vector[Data]] = {
   data.map { row =>
     val (firstHalf, secondHalf) = row.splitAt(columnIndex)
     val affectedValue =
@@ -364,28 +364,29 @@ def zeroRuleRegressor(train: Dataset, test: Dataset, measure: Measure = Mean): V
   }
 
   val outputColumn = selectColumn(train, train.head.length - 1)
-  val measure = measure match {
+  val measureValue = measure match {
     case Mean => calculateMean(outputColumn)
     case Mode => calculateMode(outputColumn)
     case Median => calculateMedian(outputColumn)
   }
 
-  test.map(row => measure)
+  test.map(row => measureValue)
 }
 
 
 // Heads UP! Previous lines correspond to other scripts' contents.
 // NEW content starts here:
 type Parameters = Map[String, Any]
-type Algorithm = (Dataset, Dataset, Parameters) => Vector[Data]
+type Output = Vector[Data]
+type Algorithm = (Dataset, Dataset, Parameters) => Output
+
 type EvaluationMetric[T <: Data] = (Vector[T], Vector[T]) => Double
 
-def evaluateAlgorithmUsingTrainTestSplit[T <: Data](dataset: Dataset, algorithm: Algorithm, parameters: Parameters, evaluationMetric: EvaluationMetric[T], trainProportion: Double = 0.8, randomSeed: Int = 42): Unit = {
+def evaluateAlgorithmUsingTrainTestSplit[T <: Data](dataset: Dataset, algorithm: Algorithm, parameters: Parameters, evaluationMetric: EvaluationMetric[T], trainProportion: Double = 0.8, randomSeed: Int = 42): Double = {
   val (train, test) = trainTestSplit(dataset, trainProportion, randomSeed)
   val predicted = algorithm(train, test, parameters)
-  val actual = selectColumn(test, test.length - 1)
-
-  evaluationMetric(actual, predicted)
+  val actual = selectColumn(test, test.head.length - 1)
+  evaluationMetric(actual.asInstanceOf[Vector[T]], predicted.asInstanceOf[Vector[T]])
 }
 
 def evaluateAlgorithmUsingCrossValidation[T <: Data](dataset: Dataset, algorithm: Algorithm, parameters: Parameters, evaluationMetric: EvaluationMetric[T], numberOfFolds: Int = 3, randomSeed: Int = 42) = {
@@ -397,8 +398,14 @@ def evaluateAlgorithmUsingCrossValidation[T <: Data](dataset: Dataset, algorithm
     test = fold
   } yield {
     val predicted = algorithm(train, test, parameters)
-    val actual = selectColumn(test, test.length - 1)
-
-    evaluationMetric(actual, predicted)
+    val actual = selectColumn(test, test.head.length - 1)
+    evaluationMetric(actual.asInstanceOf[Vector[T]], predicted.asInstanceOf[Vector[T]])
   }
 }
+
+val data = loadCsv("/media/jesus/ADATA HV100/Blog/toy-ml/src/main/resources/data/6/pima-indians-diabetes.csv")
+val transformedData = data.head.indices.foldLeft(data) { (d, i) => textColumnToNumeric(d, i) }
+
+
+val resultingAccuracy = evaluateAlgorithmUsingTrainTestSplit[Data](transformedData, (train, test, parameters) => zeroRuleClassifier(train, test), Map.empty, accuracy)
+val rmse = evaluateAlgorithmUsingTrainTestSplit[Numeric](transformedData, (train, test, parameters) => zeroRuleRegressor(train, test), Map.empty, rootMeanSquaredError)

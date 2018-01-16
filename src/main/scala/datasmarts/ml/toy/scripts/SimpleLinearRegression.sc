@@ -374,7 +374,8 @@ def zeroRuleRegressor(train: Dataset, test: Dataset, measure: Measure = Mean): V
 }
 
 type Parameters = Map[String, Any]
-type Algorithm = (Dataset, Dataset, Parameters) => Vector[Data]
+type Output = Vector[Data]
+type Algorithm = (Dataset, Dataset, Parameters) => Output
 type EvaluationMetric[T <: Data] = (Vector[T], Vector[T]) => Double
 
 def evaluateAlgorithmUsingTrainTestSplit[T <: Data](dataset: Dataset, algorithm: Algorithm, parameters: Parameters, evaluationMetric: EvaluationMetric[T], trainProportion: Double = 0.8, randomSeed: Int = 42): Unit = {
