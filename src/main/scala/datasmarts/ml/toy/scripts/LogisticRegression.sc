@@ -1,6 +1,5 @@
 import com.github.tototoshi.csv._
 import scala.util.Random
-
 sealed trait Data
 
 case class Numeric(value: Double) extends Data
