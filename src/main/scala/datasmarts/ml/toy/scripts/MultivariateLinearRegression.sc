@@ -435,7 +435,7 @@ def simpleLinearRegression(train: Dataset, test: Dataset) = {
   val (b0, b1) = coefficients(train)
 
   test.map { case Vector(data, _) =>
-    b0 + b1 * getNumericValue(data).get
+    Numeric(b0 + b1 * getNumericValue(data).get)
   }
 }
 
