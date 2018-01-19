@@ -364,13 +364,13 @@ def zeroRuleRegressor(train: Dataset, test: Dataset, measure: Measure = Mean): V
   }
 
   val outputColumn = selectColumn(train, train.head.length - 1)
-  val measure = measure match {
+  val measureValue = measure match {
     case Mean => calculateMean(outputColumn)
     case Mode => calculateMode(outputColumn)
     case Median => calculateMedian(outputColumn)
   }
 
-  test.map(row => measure)
+  test.map(_ => measureValue)
 }
 
 type Parameters = Map[String, Any]
