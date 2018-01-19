@@ -376,14 +376,14 @@ def zeroRuleRegressor(train: Dataset, test: Dataset, measure: Measure = Mean): V
 type Parameters = Map[String, Any]
 type Output = Vector[Data]
 type Algorithm = (Dataset, Dataset, Parameters) => Output
+
 type EvaluationMetric[T <: Data] = (Vector[T], Vector[T]) => Double
 
-def evaluateAlgorithmUsingTrainTestSplit[T <: Data](dataset: Dataset, algorithm: Algorithm, parameters: Parameters, evaluationMetric: EvaluationMetric[T], trainProportion: Double = 0.8, randomSeed: Int = 42): Unit = {
+def evaluateAlgorithmUsingTrainTestSplit[T <: Data](dataset: Dataset, algorithm: Algorithm, parameters: Parameters, evaluationMetric: EvaluationMetric[T], trainProportion: Double = 0.8, randomSeed: Int = 42): Double = {
   val (train, test) = trainTestSplit(dataset, trainProportion, randomSeed)
   val predicted = algorithm(train, test, parameters)
-  val actual = selectColumn(test, test.length - 1)
-
-  evaluationMetric(actual, predicted)
+  val actual = selectColumn(test, test.head.length - 1)
+  evaluationMetric(actual.asInstanceOf[Vector[T]], predicted.asInstanceOf[Vector[T]])
 }
 
 def evaluateAlgorithmUsingCrossValidation[T <: Data](dataset: Dataset, algorithm: Algorithm, parameters: Parameters, evaluationMetric: EvaluationMetric[T], numberOfFolds: Int = 3, randomSeed: Int = 42) = {
@@ -395,9 +395,8 @@ def evaluateAlgorithmUsingCrossValidation[T <: Data](dataset: Dataset, algorithm
     test = fold
   } yield {
     val predicted = algorithm(train, test, parameters)
-    val actual = selectColumn(test, test.length - 1)
-
-    evaluationMetric(actual, predicted)
+    val actual = selectColumn(test, test.head.length - 1)
+    evaluationMetric(actual.asInstanceOf[Vector[T]], predicted.asInstanceOf[Vector[T]])
   }
 }
 
@@ -405,11 +404,11 @@ def evaluateAlgorithmUsingCrossValidation[T <: Data](dataset: Dataset, algorithm
 // Heads UP! Previous lines correspond to other scripts' contents.
 // NEW content starts here:
 
-def mean(values: Vector[Numeric]): Double = values.foldLeft(0.0) { (accumulator: Double, numericValue: Numeric) =>
+def mean(values: Vector[Numeric]): Double = values.foldLeft(0.0) { (accumulator, numericValue) =>
   accumulator + numericValue.value
 } / values.length
 
-def variance(values: Vector[Numeric], mean: Double): Double = values.foldLeft(0.0) { (accumulator: Double, numericValue: Numeric) =>
+def variance(values: Vector[Numeric], mean: Double): Double = values.foldLeft(0.0) { (accumulator, numericValue) =>
   accumulator + math.pow(numericValue.value - mean, 2)
 }
 
@@ -422,8 +421,8 @@ def covariance(x: Vector[Numeric], y: Vector[Numeric], meanX: Double, meanY: Dou
 }
 
 def coefficients(dataset: Dataset) = {
-  val x = selectColumn(dataset, 0).map(d => Numeric(getNumericValue(d).get))
-  val y = selectColumn(dataset, 1).map(d => Numeric(getNumericValue(d).get))
+  val x = selectColumn(dataset, 0).asInstanceOf[Vector[Numeric]]
+  val y = selectColumn(dataset, 1).asInstanceOf[Vector[Numeric]]
 
   val xMean = mean(x)
   val yMean = mean(y)
@@ -439,6 +438,6 @@ def simpleLinearRegression(train: Dataset, test: Dataset) = {
   val (b0, b1) = coefficients(train)
 
   test.map { case Vector(data, _) =>
-      b0 + b1 * getNumericValue(data).get
+      Numeric(b0 + b1 * getNumericValue(data).get)
   }
 }

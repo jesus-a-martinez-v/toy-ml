@@ -403,9 +403,9 @@ def evaluateAlgorithmUsingCrossValidation[T <: Data](dataset: Dataset, algorithm
   }
 }
 
-val data = loadCsv("/media/jesus/ADATA HV100/Blog/toy-ml/src/main/resources/data/6/pima-indians-diabetes.csv")
-val transformedData = data.head.indices.foldLeft(data) { (d, i) => textColumnToNumeric(d, i) }
-
-
-val resultingAccuracy = evaluateAlgorithmUsingTrainTestSplit[Data](transformedData, (train, test, parameters) => zeroRuleClassifier(train, test), Map.empty, accuracy)
-val rmse = evaluateAlgorithmUsingTrainTestSplit[Numeric](transformedData, (train, test, parameters) => zeroRuleRegressor(train, test), Map.empty, rootMeanSquaredError)
+//val data = loadCsv("/media/jesus/ADATA HV100/Blog/toy-ml/src/main/resources/data/6/pima-indians-diabetes.csv")
+//val transformedData = data.head.indices.foldLeft(data) { (d, i) => textColumnToNumeric(d, i) }
+//
+//
+//val resultingAccuracy = evaluateAlgorithmUsingTrainTestSplit[Data](transformedData, (train, test, parameters) => zeroRuleClassifier(train, test), Map.empty, accuracy)
+//val rmse = evaluateAlgorithmUsingTrainTestSplit[Numeric](transformedData, (train, test, parameters) => zeroRuleRegressor(train, test), Map.empty, rootMeanSquaredError)
