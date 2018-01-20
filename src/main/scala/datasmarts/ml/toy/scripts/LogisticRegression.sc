@@ -504,12 +504,13 @@ def coefficientsLogisticRegressionSgd(train: Dataset, learningRate: Double, numb
   for {
     _ <- 1 to numberOfEpochs
     row <- train
-    predicted = predictLogisticRegression(row, coefficients)
-    actual = getNumericValue(row.last).get
-    error = predicted - actual
+
   } {
-    // TODO Bias?
-    val firstCoefficient = coefficients.head + learningRate * error * predicted * (1.0 - predicted)
+    val predicted = predictLogisticRegression(row, coefficients)
+    val actual = getNumericValue(row.last).get
+    val error = predicted - actual
+
+    val bias = coefficients.head + learningRate * error * predicted * (1.0 - predicted)
     val indices = row.indices.init
 
     val remainingCoefficients = indices.foldLeft(coefficients) { (c, index) =>
@@ -517,7 +518,7 @@ def coefficientsLogisticRegressionSgd(train: Dataset, learningRate: Double, numb
       updatedVector(c, c(index + 1) + learningRate * error * predicted * (1.0 - predicted) * actual, index + 1)
     }
 
-    coefficients = Vector(firstCoefficient) ++ remainingCoefficients
+    coefficients = Vector(bias) ++ remainingCoefficients.tail
   }
 
   coefficients

@@ -551,12 +551,13 @@ def trainWeights(train: Dataset, learningRate: Double, numberOfEpochs: Int) = {
   for {
     _ <- 1 to numberOfEpochs
     row <- train
-    predicted = predictWithWeights(row, weights)
-    actual = getNumericValue(row.last).get
-    error = predicted - actual
   } {
-    // TODO Bias?
-    val firstWeight = weights.head + learningRate * error
+
+    val predicted = predictWithWeights(row, weights)
+    val actual = getNumericValue(row.last).get
+    val error = predicted - actual
+
+    val bias = weights.head + learningRate * error
     val indices = row.indices.init
 
     val remainingWeights = indices.foldLeft(weights) { (w, index) =>
@@ -564,7 +565,7 @@ def trainWeights(train: Dataset, learningRate: Double, numberOfEpochs: Int) = {
       updatedVector(w, w(index + 1) + learningRate * error * actual, index + 1)
     }
 
-    weights = Vector(firstWeight) ++ remainingWeights
+    weights = Vector(bias) ++ remainingWeights.tail
   }
 
   weights

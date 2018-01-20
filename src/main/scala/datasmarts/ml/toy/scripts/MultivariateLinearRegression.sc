@@ -459,21 +459,21 @@ def coefficientsLinearRegressionSgd(train: Dataset, learningRate: Double, number
   var coefficients = Vector.fill(train.head.length)(0.0)
 
   for {
-    _ <- 1 to numberOfEpochs
+    epoch <- 1 to numberOfEpochs
     row <- train
-    predicted = predictLinearRegression(row, coefficients)
-    actual = getNumericValue(row.last).get
-    error = predicted - actual
   } {
-    // TODO Bias?
-    val firstCoefficient = coefficients.head - learningRate * error
+    val predicted = predictLinearRegression(row, coefficients)
+    val actual = getNumericValue(row.last).get
+    val error = predicted - actual
+
+    val bias = coefficients.head - learningRate * error
     val indices = row.indices.init
 
     val remainingCoefficients = indices.foldLeft(coefficients) { (c, index) =>
       updatedVector(c, c(index + 1) - learningRate * error * getNumericValue(row(index)).get, index + 1)
     }
 
-    coefficients = Vector(firstCoefficient) ++ remainingCoefficients
+    coefficients = Vector(bias) ++ remainingCoefficients.tail
   }
 
   coefficients
