@@ -442,7 +442,7 @@ def simpleLinearRegression(train: Dataset, test: Dataset) = {
 // Heads UP! Previous lines correspond to other scripts' contents.
 // NEW content starts here:
 
-def updatedVector[T](vector: Vector[T], newValue: T, index: Int) = {
+def updatedVector[T](vector: Vector[T], newValue: T, index: Int): Vector[T] = {
   val (firstHalf, secondHalf) = vector.splitAt(index)
   firstHalf ++ Vector(newValue) ++ secondHalf.tail
 }
