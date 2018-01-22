@@ -377,10 +377,10 @@ type Parameters = Map[String, Any]
 type Algorithm = (Dataset, Dataset, Parameters) => Vector[Data]
 type EvaluationMetric[T <: Data] = (Vector[T], Vector[T]) => Double
 
-def evaluateAlgorithmUsingTrainTestSplit[T <: Data](dataset: Dataset, algorithm: Algorithm, parameters: Parameters, evaluationMetric: EvaluationMetric[T], trainProportion: Double = 0.8, randomSeed: Int = 42): Unit = {
+def evaluateAlgorithmUsingTrainTestSplit[T <: Data](dataset: Dataset, algorithm: Algorithm, parameters: Parameters, evaluationMetric: EvaluationMetric[T], trainProportion: Double = 0.8, randomSeed: Int = 42) = {
   val (train, test) = trainTestSplit(dataset, trainProportion, randomSeed)
-  val predicted = algorithm(train, test, parameters)
-  val actual = selectColumn(test, test.length - 1)
+  val predicted = algorithm(train, test, parameters).asInstanceOf[Vector[T]]
+  val actual = selectColumn(test, test.length - 1).asInstanceOf[Vector[T]]
 
   evaluationMetric(actual, predicted)
 }
@@ -393,8 +393,8 @@ def evaluateAlgorithmUsingCrossValidation[T <: Data](dataset: Dataset, algorithm
     train = folds.filterNot(_ == fold).flatten
     test = fold
   } yield {
-    val predicted = algorithm(train, test, parameters)
-    val actual = selectColumn(test, test.length - 1)
+    val predicted = algorithm(train, test, parameters).asInstanceOf[Vector[T]]
+    val actual = selectColumn(test, test.length - 1).asInstanceOf[Vector[T]]
 
     evaluationMetric(actual, predicted)
   }
@@ -482,7 +482,7 @@ def linearRegressionSgd(train: Dataset, test: Dataset, parameters: Parameters) =
   val coefficients = coefficientsLinearRegressionSgd(train, learningRate, numberOfEpochs)
 
   test.map { row =>
-    predictLinearRegression(row, coefficients)
+    Numeric(predictLinearRegression(row, coefficients))
   }
 }
 
@@ -528,7 +528,7 @@ def logisticRegression(train: Dataset, test: Dataset, parameters: Parameters) = 
   val coefficients = coefficientsLogisticRegressionSgd(train, learningRate, numberOfEpochs)
 
   test.map { row =>
-    math.round(predictLogisticRegression(row, coefficients))
+    Numeric(math.round(predictLogisticRegression(row, coefficients)))
   }
 }
 
