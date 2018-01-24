@@ -578,6 +578,6 @@ def perceptron(train: Dataset, test: Dataset, parameters: Parameters) = {
   val weights = trainWeights(train, learningRate, numberOfEpochs)
 
   test.map { row =>
-    predictWithWeights(row, weights)
+    Numeric(predictWithWeights(row, weights))
   }
 }
