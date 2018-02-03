@@ -662,11 +662,31 @@ def perceptron(train: Dataset, test: Dataset, parameters: Parameters) = {
 // Heads UP! Previous lines correspond to other scripts' contents.
 // NEW content starts here:
 
-def separateByClass(dataset: Dataset) = {
+def separateByClass(dataset: Dataset): Map[Data, Vector[Vector[Data]]] = {
   dataset.groupBy(_.last)
 }
 
-def summarizeDataset(dataset: Dataset): Vector[(Double, Double, Int)] = {
+val mockDataset = Vector(
+  (3.393533211, 2.331273381, 0),
+  (3.110073483, 1.781539638, 0),
+  (1.343808831, 3.368360954, 0),
+  (3.582294042, 4.67917911, 0),
+  (2.280362439, 2.866990263, 0),
+  (7.42346942, 4.696522875, 1),
+  (5.745051997, 3.533989803, 1),
+  (9.172168622, 2.511101045, 1),
+  (7.7922783481, 3.424088941, 1),
+  (7.939820817, 0.791637231, 1)
+) map { case (x1, x2, y) => Vector(Numeric(x1), Numeric(x2), Numeric(y))}
+
+val separated = separateByClass(mockDataset)
+separated.foreach { case (clazz, vectors) =>
+    println(clazz)
+    println(vectors)
+    println()
+}
+
+def summarizeDataset(dataset: Dataset) = {
   val numberOfColumns = dataset.head.length
 
   val means = getColumnsMeans(dataset)
@@ -679,16 +699,31 @@ def summarizeDataset(dataset: Dataset): Vector[(Double, Double, Int)] = {
   (0 until numberOfColumns - 1).toVector.map(i => (means(i).get, standardDeviations(i).get, counts(i)))
 }
 
+println(summarizeDataset(mockDataset))
+
 def summarizeByClass(dataset: Dataset) = {
   val separated = separateByClass(dataset)
 
   separated.mapValues(summarizeDataset)
 }
 
+
+val summaries = summarizeByClass(mockDataset)
+
+summaries.foreach { case (clazz, vectors) =>
+  println(clazz)
+  println(vectors)
+  println()
+}
+
 def calculateProbability(x: Double, mean: Double, standardDeviation: Double) = {
   val exponent = math.exp(-(math.pow(x - mean, 2) / (2 * standardDeviation * standardDeviation)))
   (1.0 / (math.sqrt(2 * math.Pi) * standardDeviation)) * exponent
 }
+
+println(calculateProbability(1.0, 1.0, 1.0))
+println(calculateProbability(2.0, 1.0, 1.0))
+println(calculateProbability(0.0, 1.0, 1.0))
 
 def calculateClassProbabilities(summaries: Map[Data, Vector[(Double, Double, Int)]], row: Vector[Data]) = {
   val totalRows = summaries.foldLeft(0){ (accum, entry) =>
@@ -708,7 +743,10 @@ def calculateClassProbabilities(summaries: Map[Data, Vector[(Double, Double, Int
   }
 }
 
-def predict(summaries: Map[Data, Vector[(Double, Double, Int)]], row: Vector[Data]) = {
+val probabilities = calculateClassProbabilities(summaries, mockDataset.head)
+println(probabilities)
+
+def predict(summaries: Map[Data, Vector[(Double, Double, Int)]], row: Vector[Data]): Data = {
   val probabilities = calculateClassProbabilities(summaries, row)
 
   val (Some(bestLabel), _) = probabilities.foldLeft((None: Option[Data], -1.0)) { (bestLabelAndProb, entry) =>

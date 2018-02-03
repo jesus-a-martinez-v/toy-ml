@@ -120,7 +120,7 @@ def normalizeDataset(dataset: Dataset, minMaxes: MinMaxData): Dataset = {
   }
 }
 
-def getColumnMeans(dataset: Dataset): StatisticData = {
+def getColumnsMeans(dataset: Dataset): StatisticData = {
   if (dataset.isEmpty) {
     Vector.empty
   } else {
