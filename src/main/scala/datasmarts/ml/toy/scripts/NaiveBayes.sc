@@ -381,7 +381,7 @@ type EvaluationMetric[T <: Data] = (Vector[T], Vector[T]) => Double
 def evaluateAlgorithmUsingTrainTestSplit[T <: Data](dataset: Dataset, algorithm: Algorithm, parameters: Parameters, evaluationMetric: EvaluationMetric[T], trainProportion: Double = 0.8, randomSeed: Int = 42) = {
   val (train, test) = trainTestSplit(dataset, trainProportion, randomSeed)
   val predicted = algorithm(train, test, parameters).asInstanceOf[Vector[T]]
-  val actual = selectColumn(test, test.length - 1).asInstanceOf[Vector[T]]
+  val actual = selectColumn(test, test.head.length - 1).asInstanceOf[Vector[T]]
 
   evaluationMetric(actual, predicted)
 }
@@ -395,7 +395,7 @@ def evaluateAlgorithmUsingCrossValidation[T <: Data](dataset: Dataset, algorithm
     test = fold
   } yield {
     val predicted = algorithm(train, test, parameters).asInstanceOf[Vector[T]]
-    val actual = selectColumn(test, test.length - 1).asInstanceOf[Vector[T]]
+    val actual = selectColumn(test, test.head.length - 1).asInstanceOf[Vector[T]]
 
     evaluationMetric(actual, predicted)
   }
@@ -772,3 +772,30 @@ def naiveBayes(train: Dataset, test: Dataset) = {
     predict(summaries, row)
   }
 }
+
+val BASE_DATA_PATH = "../../resources/data"
+val irisPath = s"/media/jesus/ADATA HV100/Blog/toy-ml/src/main/resources/data/12/iris.csv"
+
+val rawData = loadCsv(irisPath)
+val numberOfRows = rawData.length
+val numberOfColumns = rawData.head.length
+println(s"Number of rows in dataset: $numberOfRows")
+println(s"Number of columns in dataset: $numberOfColumns")
+
+val (data, lookUpTable) = {
+  val dataWithNumericColumns = (0 until (numberOfColumns - 1)).toVector.foldLeft(rawData) { (d, i) => textColumnToNumeric(d, i)}
+  categoricalColumnToNumeric(dataWithNumericColumns, numberOfColumns - 1)
+}
+
+// Normalize data
+val minMax = getDatasetMinAndMax(data)
+val normalizedData = normalizeDataset(data, minMax)
+
+val naiveBayesAccuracy = evaluateAlgorithmUsingTrainTestSplit[Numeric](
+  normalizedData,
+  (train, test, parameters) => naiveBayes(train, test),
+  Map.empty,
+  accuracy,
+  trainProportion=0.8)
+
+println(s"Naive Bayes accuracy: $naiveBayesAccuracy")

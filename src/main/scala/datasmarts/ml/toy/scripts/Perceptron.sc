@@ -380,7 +380,7 @@ type EvaluationMetric[T <: Data] = (Vector[T], Vector[T]) => Double
 def evaluateAlgorithmUsingTrainTestSplit[T <: Data](dataset: Dataset, algorithm: Algorithm, parameters: Parameters, evaluationMetric: EvaluationMetric[T], trainProportion: Double = 0.8, randomSeed: Int = 42) = {
   val (train, test) = trainTestSplit(dataset, trainProportion, randomSeed)
   val predicted = algorithm(train, test, parameters).asInstanceOf[Vector[T]]
-  val actual = selectColumn(test, test.length - 1).asInstanceOf[Vector[T]]
+  val actual = selectColumn(test, test.head.length - 1).asInstanceOf[Vector[T]]
 
   evaluationMetric(actual, predicted)
 }
@@ -394,7 +394,7 @@ def evaluateAlgorithmUsingCrossValidation[T <: Data](dataset: Dataset, algorithm
     test = fold
   } yield {
     val predicted = algorithm(train, test, parameters).asInstanceOf[Vector[T]]
-    val actual = selectColumn(test, test.length - 1).asInstanceOf[Vector[T]]
+    val actual = selectColumn(test, test.head.length - 1).asInstanceOf[Vector[T]]
 
     evaluationMetric(actual, predicted)
   }
