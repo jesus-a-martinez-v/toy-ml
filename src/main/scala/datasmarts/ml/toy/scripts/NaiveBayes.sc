@@ -580,110 +580,11 @@ def perceptron(train: Dataset, test: Dataset, parameters: Parameters) = {
   }
 }
 
-
-//def giniIndex(groups: Vector[Vector[Vector[Data]]], classValues: Vector[Data]): Double = {
-//  var gini = 0.0
-//
-//  for {
-//    c <- classValues
-//    g <- groups
-//    if g.nonEmpty
-//  } {
-//
-//    val proportion = g.count(row => row.last.asInstanceOf[Numeric].value == c.asInstanceOf[Numeric].value).toDouble / g.length
-//    gini += proportion * (1 - proportion)
-//  }
-//
-//  gini
-//}
-//
-//def testSplit(index: Int, value: Double, dataset: Dataset) = {
-//  val (left, right) = dataset.span(row => row(index).asInstanceOf[Numeric].value < value)
-//  Vector(left, right)
-//}
-//
-//def getSplit(dataset: Dataset) = {
-//  val classValues = selectColumn(dataset, dataset.head.length - 1).distinct
-//
-//  var bIndex = 999
-//  var bValue = Numeric(999)
-//  var bScore = 999.0
-//  var bGroups: Vector[Vector[Vector[Data]] = Vector.empty
-//
-//  for {
-//    index <- dataset.head.indices
-//    row <- dataset
-//  } {
-//    val groups = testSplit(index, row(index).asInstanceOf[Numeric].value, dataset)
-//    val gini = giniIndex(groups, classValues)
-//
-//    if (gini < bScore) {
-//      bIndex = index
-//      bValue = row(index).asInstanceOf[Numeric]
-//      bScore = gini
-//      bGroups = groups
-//    }
-//  }
-//
-//  Map("index" -> bIndex, "value" -> bValue, "groups" -> bGroups)
-//}
-//
-//def toTerminal(group: Vector[Vector[Data]]) = {
-//  val outcomes = group.map(_.last.asInstanceOf[Numeric].value)
-//  outcomes.distinct.maxBy(o => outcomes.count(_ == o))
-//}
-//
-//def split(node: Map[String, Any], maxDepth: Int, minSize: Int, depth: Int) = {
-//  val groups = node("groups").asInstanceOf[Vector[Vector[Vector[Data]]]]
-//  val left = groups(0)
-//  val right = groups(1)
-//
-//  if (left.isEmpty, right.isEmpty) {
-//    node("left") = toTerminal(left ++ right)
-//    node
-//  }
-//
-//  if (depth >= maxDepth) {
-//    node("left") = toTerminal(left)
-//    node("right") = toTerminal(right)
-//    node
-//  }
-//
-//  if (left.length <= minSize) {
-//    node("left") = toTerminal(left)
-//  } else {
-//    node("left") = getSplit(left)
-//    split(node("left"), maxDepth, minSize, depth - 1)
-//  }
-//
-//}
-
-
 // Heads UP! Previous lines correspond to other scripts' contents.
 // NEW content starts here:
 
 def separateByClass(dataset: Dataset): Map[Data, Vector[Vector[Data]]] = {
   dataset.groupBy(_.last)
-}
-
-val mockDataset = Vector(
-  (3.393533211, 2.331273381, 0),
-  (3.110073483, 1.781539638, 0),
-  (1.343808831, 3.368360954, 0),
-  (3.582294042, 4.67917911, 0),
-  (2.280362439, 2.866990263, 0),
-  (7.42346942, 4.696522875, 1),
-  (5.745051997, 3.533989803, 1),
-  (9.172168622, 2.511101045, 1),
-  (7.7922783481, 3.424088941, 1),
-  (7.939820817, 0.791637231, 1)
-) map { case (x1, x2, y) => Vector(Numeric(x1), Numeric(x2), Numeric(y))}
-
-val separated = separateByClass(mockDataset)
-separated.foreach { case (clazz, vectors) =>
-    println(clazz)
-    println(vectors)
-    println()
 }
 
 def summarizeDataset(dataset: Dataset) = {
@@ -699,31 +600,16 @@ def summarizeDataset(dataset: Dataset) = {
   (0 until numberOfColumns - 1).toVector.map(i => (means(i).get, standardDeviations(i).get, counts(i)))
 }
 
-println(summarizeDataset(mockDataset))
-
 def summarizeByClass(dataset: Dataset) = {
   val separated = separateByClass(dataset)
 
   separated.mapValues(summarizeDataset)
 }
 
-
-val summaries = summarizeByClass(mockDataset)
-
-summaries.foreach { case (clazz, vectors) =>
-  println(clazz)
-  println(vectors)
-  println()
-}
-
 def calculateProbability(x: Double, mean: Double, standardDeviation: Double) = {
   val exponent = math.exp(-(math.pow(x - mean, 2) / (2 * standardDeviation * standardDeviation)))
   (1.0 / (math.sqrt(2 * math.Pi) * standardDeviation)) * exponent
 }
-
-println(calculateProbability(1.0, 1.0, 1.0))
-println(calculateProbability(2.0, 1.0, 1.0))
-println(calculateProbability(0.0, 1.0, 1.0))
 
 def calculateClassProbabilities(summaries: Map[Data, Vector[(Double, Double, Int)]], row: Vector[Data]) = {
   val totalRows = summaries.foldLeft(0){ (accum, entry) =>
@@ -742,9 +628,6 @@ def calculateClassProbabilities(summaries: Map[Data, Vector[(Double, Double, Int
     }
   }
 }
-
-val probabilities = calculateClassProbabilities(summaries, mockDataset.head)
-println(probabilities)
 
 def predict(summaries: Map[Data, Vector[(Double, Double, Int)]], row: Vector[Data]): Data = {
   val probabilities = calculateClassProbabilities(summaries, row)
@@ -772,30 +655,3 @@ def naiveBayes(train: Dataset, test: Dataset) = {
     predict(summaries, row)
   }
 }
-
-val BASE_DATA_PATH = "../../resources/data"
-val irisPath = s"/media/jesus/ADATA HV100/Blog/toy-ml/src/main/resources/data/12/iris.csv"
-
-val rawData = loadCsv(irisPath)
-val numberOfRows = rawData.length
-val numberOfColumns = rawData.head.length
-println(s"Number of rows in dataset: $numberOfRows")
-println(s"Number of columns in dataset: $numberOfColumns")
-
-val (data, lookUpTable) = {
-  val dataWithNumericColumns = (0 until (numberOfColumns - 1)).toVector.foldLeft(rawData) { (d, i) => textColumnToNumeric(d, i)}
-  categoricalColumnToNumeric(dataWithNumericColumns, numberOfColumns - 1)
-}
-
-// Normalize data
-val minMax = getDatasetMinAndMax(data)
-val normalizedData = normalizeDataset(data, minMax)
-
-val naiveBayesAccuracy = evaluateAlgorithmUsingTrainTestSplit[Numeric](
-  normalizedData,
-  (train, test, parameters) => naiveBayes(train, test),
-  Map.empty,
-  accuracy,
-  trainProportion=0.8)
-
-println(s"Naive Bayes accuracy: $naiveBayesAccuracy")

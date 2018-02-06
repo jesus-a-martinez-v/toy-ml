@@ -381,7 +381,7 @@ type EvaluationMetric[T <: Data] = (Vector[T], Vector[T]) => Double
 def evaluateAlgorithmUsingTrainTestSplit[T <: Data](dataset: Dataset, algorithm: Algorithm, parameters: Parameters, evaluationMetric: EvaluationMetric[T], trainProportion: Double = 0.8, randomSeed: Int = 42) = {
   val (train, test) = trainTestSplit(dataset, trainProportion, randomSeed)
   val predicted = algorithm(train, test, parameters).asInstanceOf[Vector[T]]
-  val actual = selectColumn(test, test.length - 1).asInstanceOf[Vector[T]]
+  val actual = selectColumn(test, test.head.length - 1).asInstanceOf[Vector[T]]
 
   evaluationMetric(actual, predicted)
 }
@@ -395,7 +395,7 @@ def evaluateAlgorithmUsingCrossValidation[T <: Data](dataset: Dataset, algorithm
     test = fold
   } yield {
     val predicted = algorithm(train, test, parameters).asInstanceOf[Vector[T]]
-    val actual = selectColumn(test, test.length - 1).asInstanceOf[Vector[T]]
+    val actual = selectColumn(test, test.head.length - 1).asInstanceOf[Vector[T]]
 
     evaluationMetric(actual, predicted)
   }
@@ -580,90 +580,11 @@ def perceptron(train: Dataset, test: Dataset, parameters: Parameters) = {
   }
 }
 
-
-//def giniIndex(groups: Vector[Vector[Vector[Data]]], classValues: Vector[Data]): Double = {
-//  var gini = 0.0
-//
-//  for {
-//    c <- classValues
-//    g <- groups
-//    if g.nonEmpty
-//  } {
-//
-//    val proportion = g.count(row => row.last.asInstanceOf[Numeric].value == c.asInstanceOf[Numeric].value).toDouble / g.length
-//    gini += proportion * (1 - proportion)
-//  }
-//
-//  gini
-//}
-//
-//def testSplit(index: Int, value: Double, dataset: Dataset) = {
-//  val (left, right) = dataset.span(row => row(index).asInstanceOf[Numeric].value < value)
-//  Vector(left, right)
-//}
-//
-//def getSplit(dataset: Dataset) = {
-//  val classValues = selectColumn(dataset, dataset.head.length - 1).distinct
-//
-//  var bIndex = 999
-//  var bValue = Numeric(999)
-//  var bScore = 999.0
-//  var bGroups: Vector[Vector[Vector[Data]] = Vector.empty
-//
-//  for {
-//    index <- dataset.head.indices
-//    row <- dataset
-//  } {
-//    val groups = testSplit(index, row(index).asInstanceOf[Numeric].value, dataset)
-//    val gini = giniIndex(groups, classValues)
-//
-//    if (gini < bScore) {
-//      bIndex = index
-//      bValue = row(index).asInstanceOf[Numeric]
-//      bScore = gini
-//      bGroups = groups
-//    }
-//  }
-//
-//  Map("index" -> bIndex, "value" -> bValue, "groups" -> bGroups)
-//}
-//
-//def toTerminal(group: Vector[Vector[Data]]) = {
-//  val outcomes = group.map(_.last.asInstanceOf[Numeric].value)
-//  outcomes.distinct.maxBy(o => outcomes.count(_ == o))
-//}
-//
-//def split(node: Map[String, Any], maxDepth: Int, minSize: Int, depth: Int) = {
-//  val groups = node("groups").asInstanceOf[Vector[Vector[Vector[Data]]]]
-//  val left = groups(0)
-//  val right = groups(1)
-//
-//  if (left.isEmpty, right.isEmpty) {
-//    node("left") = toTerminal(left ++ right)
-//    node
-//  }
-//
-//  if (depth >= maxDepth) {
-//    node("left") = toTerminal(left)
-//    node("right") = toTerminal(right)
-//    node
-//  }
-//
-//  if (left.length <= minSize) {
-//    node("left") = toTerminal(left)
-//  } else {
-//    node("left") = getSplit(left)
-//    split(node("left"), maxDepth, minSize, depth - 1)
-//  }
-//
-//}
-
-
-def separateByClass(dataset: Dataset) = {
+def separateByClass(dataset: Dataset): Map[Data, Vector[Vector[Data]]] = {
   dataset.groupBy(_.last)
 }
 
-def summarizeDataset(dataset: Dataset): Vector[(Double, Double, Int)] = {
+def summarizeDataset(dataset: Dataset) = {
   val numberOfColumns = dataset.head.length
 
   val means = getColumnsMeans(dataset)
@@ -681,6 +602,9 @@ def summarizeByClass(dataset: Dataset) = {
 
   separated.mapValues(summarizeDataset)
 }
+
+
+val summaries = summarizeByClass(mockDataset)
 
 def calculateProbability(x: Double, mean: Double, standardDeviation: Double) = {
   val exponent = math.exp(-(math.pow(x - mean, 2) / (2 * standardDeviation * standardDeviation)))
@@ -705,7 +629,7 @@ def calculateClassProbabilities(summaries: Map[Data, Vector[(Double, Double, Int
   }
 }
 
-def predict(summaries: Map[Data, Vector[(Double, Double, Int)]], row: Vector[Data]) = {
+def predict(summaries: Map[Data, Vector[(Double, Double, Int)]], row: Vector[Data]): Data = {
   val probabilities = calculateClassProbabilities(summaries, row)
 
   val (Some(bestLabel), _) = probabilities.foldLeft((None: Option[Data], -1.0)) { (bestLabelAndProb, entry) =>
@@ -766,8 +690,21 @@ def predictClassification(train: Dataset, testRow: Vector[Numeric], numberOfNeig
   outputValues.maxBy(o => outputValues.count(_ == o))
 }
 
-def kNearestNeighbors(train: Dataset, test: Dataset, numberOfNeighbors: Int) = {
+def predictRegression(train: Dataset, testRow: Vector[Numeric], numberOfNeighbors: Int) = {
+  val neighbors = getNeighbors(train, testRow, numberOfNeighbors)
+  val outputValues = neighbors.map(_.last)
+
+  Numeric {
+    outputValues.foldLeft(0.0) { (total, numeric) => total + numeric.value } / outputValues.length
+  }
+}
+
+type Predictor = (Dataset, Vector[Numeric], Int) => Numeric
+def kNearestNeighbors(train: Dataset, test: Dataset, parameters: Parameters) = {
+  val numberOfNeighbors = parameters("numberOfNeighbors").asInstanceOf[Int]
+  val predictor = parameters("predictor").asInstanceOf[Predictor]
+
   test.map { row =>
-    predictClassification(train, row.asInstanceOf[Vector[Numeric]], numberOfNeighbors)
+   predictor(train, row.asInstanceOf[Vector[Numeric]], numberOfNeighbors)
   }
 }
