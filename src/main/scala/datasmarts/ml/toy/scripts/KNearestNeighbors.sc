@@ -603,9 +603,6 @@ def summarizeByClass(dataset: Dataset) = {
   separated.mapValues(summarizeDataset)
 }
 
-
-val summaries = summarizeByClass(mockDataset)
-
 def calculateProbability(x: Double, mean: Double, standardDeviation: Double) = {
   val exponent = math.exp(-(math.pow(x - mean, 2) / (2 * standardDeviation * standardDeviation)))
   (1.0 / (math.sqrt(2 * math.Pi) * standardDeviation)) * exponent
