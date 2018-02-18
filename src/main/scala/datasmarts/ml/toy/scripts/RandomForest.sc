@@ -1,5 +1,3 @@
-import javax.swing.tree.TreeNode
-
 import com.github.tototoshi.csv._
 
 import scala.util.Random
@@ -768,9 +766,6 @@ def learningVectorQuantization(train: Dataset, test: Dataset, numberOfCodebooks:
   }
 }
 
-// Heads UP! Previous lines correspond to other scripts' contents.
-// NEW content starts here:
-
 sealed trait TreeNode
 type Group = Vector[Vector[Data]]
 case class InnerNode(index: Int, value: Double, groups: Option[Vector[Group]] = None, left: Option[TreeNode] = None, right: Option[TreeNode] = None) extends TreeNode
@@ -847,7 +842,7 @@ def split(node: TreeNode, maxDepth: Int, minSize: Int, depth: Int): TreeNode = {
         innerNode.copy(left = Some(toTerminal(left)), right = Some(toTerminal(right)))
       } else {
         val leftNode = if (left.lengthCompare(minSize) <= 0) {
-            innerNode.copy(left = Some(toTerminal(left)))
+          innerNode.copy(left = Some(toTerminal(left)))
         } else {
           val n = innerNode.copy(left = Some(getSplit(left)))
           split(n, maxDepth, minSize, depth + 1)
@@ -866,6 +861,7 @@ def split(node: TreeNode, maxDepth: Int, minSize: Int, depth: Int): TreeNode = {
 }
 
 def buildTree(train: Dataset, maxDepth: Int, minSize: Int) = split(getSplit(train), maxDepth, minSize, 1)
+
 
 def predictWithTree(node: TreeNode, row: Vector[Numeric]): Numeric = node match {
   case TerminalNode(outcome) => outcome
@@ -888,3 +884,91 @@ def decisionTree(train: Dataset, test: Dataset, parameters: Parameters) = {
     predictWithTree(t, row.asInstanceOf[Vector[Numeric]])
   }
 }
+
+val mockDataset = Vector(
+  (2.771244718,1.784783929,0),
+  (1.728571309,1.169761413,0),
+  (3.678319846,2.81281357,0),
+  (3.961043357,2.61995032,0),
+  (2.999208922,2.209014212,0),
+  (7.497545867,3.162953546,1),
+  (9.00220326,3.339047188,1),
+  (7.444542326,0.476683375,1),
+  (10.12493903,3.234550982,1),
+  (6.642287351,3.319983761,1)) map { case (x1, x2, y) => Vector(Numeric(x1), Numeric(x2), Numeric(y)) }
+
+val split = getSplit(mockDataset)
+println(split.index)
+println(split.value)
+
+val myTree = buildTree(mockDataset, 1, 1)
+
+List(1, 2, 3, 4, 5, 6, 7).span(_ <= 5)
+
+for (r <- mockDataset) {
+  println(s"Expected=${r.last.value}, Got=${predictWithTree(myTree, r)}")
+}
+
+
+val banknotePath = "/media/jesus/ADATA HV100/Blog/toy-ml/src/main/resources/data/11/banknote.csv"
+
+val rawData = loadCsv(banknotePath)
+val numberOfRows = rawData.length
+val numberOfColumns = rawData.head.length
+println(s"Number of rows in dataset: $numberOfRows")
+println(s"Number of columns in dataset: $numberOfColumns")
+
+val (data, lookUpTable) = {
+  val dataWithNumericColumns = (0 until (numberOfColumns - 1)).toVector.foldLeft(rawData) { (d, i) => textColumnToNumeric(d, i) }
+  categoricalColumnToNumeric(dataWithNumericColumns, numberOfColumns - 1)
+}
+
+val baselineAccuracy = evaluateAlgorithmUsingTrainTestSplit[Numeric](
+  data,
+  (train, test, parameters) => zeroRuleClassifier(train, test),
+  Map.empty,
+  accuracy,
+  trainProportion=0.8)
+
+println(s"Zero Rule Algorithm accuracy: $baselineAccuracy")
+
+
+val decisionTreeAccuracy = evaluateAlgorithmUsingTrainTestSplit[Numeric](
+  data,
+  decisionTree,
+  Map("maxDepth" -> 5, "minSize" -> 10),
+  accuracy,
+  trainProportion=0.8)
+
+println(s"Decision Tree accuracy: $decisionTreeAccuracy")
+
+
+def subsample(dataset: Dataset, ratio: Double = 1.0, seed: Int = 42) = {
+  val random = new Random(seed)
+  val nSample = math.round(dataset.length * ratio).toInt
+
+  random.shuffle(dataset)
+
+  dataset.take(nSample)
+}
+
+def baggingPredict(trees: List[TreeNode], row: Vector[Numeric]): Numeric = {
+  val predictions = trees.map(t => predictWithTree(t, row)).distinct
+  predictions.maxBy(p => predictions.count(_ == p))
+}
+
+def bagging(train: Dataset, test: Dataset, parameters: Parameters) = {
+  val numberOfTrees = parameters("numberOfTrees").asInstanceOf[Int]
+  val maxDepth = parameters("maxDepth").asInstanceOf[Int]
+  val minSize = parameters("minSize").asInstanceOf[Int]
+
+  val trees = (1 to numberOfTrees).toList.map(_ => buildTree(subsample(train), maxDepth, minSize))
+
+  test.map { r =>
+    baggingPredict(trees, r.asInstanceOf[Vector[Numeric]])
+  }
+}
+
+// Heads UP! Previous lines correspond to other scripts' contents.
+// NEW content starts here:
+

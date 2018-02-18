@@ -224,52 +224,6 @@ def crossValidationSplit(dataset: Dataset, numberOfFolds: Int = 3, seed: Int = 4
   shuffledDataset.grouped(foldSize).toVector
 }
 
-def f1(actual: Vector[Data], predicted: Vector[Data], positiveLabel: Data): Double = {
-  assert(actual.length == predicted.length)
-
-  val precisionValue = precision(actual, predicted, positiveLabel)
-  val recallValue = recall(actual, predicted, positiveLabel)
-
-  (precisionValue * recallValue) / (precisionValue + recallValue)
-}
-
-def recall(actual: Vector[Data], predicted: Vector[Data], positiveLabel: Data): Double = {
-  assert(actual.length == predicted.length)
-
-  val matrix = confusionMatrix(actual, predicted, positiveLabel)
-
-  matrix("TP").toDouble / (matrix("TP") + matrix("FN")).toDouble
-}
-
-
-def precision(actual: Vector[Data], predicted: Vector[Data], positiveLabel: Data): Double = {
-  assert(actual.length == predicted.length)
-
-  val matrix = confusionMatrix(actual, predicted, positiveLabel)
-
-  matrix("TP").toDouble / (matrix("TP") + matrix("FP")).toDouble
-}
-
-def rootMeanSquaredError(actual: Vector[Numeric], predicted: Vector[Numeric]): Double = {
-  assert(actual.length == predicted.length)
-
-  val sumOfSquaredErrors = actual.indices.foldLeft(0.0) { (accumulated, index) =>
-    accumulated + math.pow(actual(index).value - predicted(index).value, 2)
-  }
-
-  math.sqrt(sumOfSquaredErrors / actual.length)
-}
-
-def meanAbsoluteError(actual: Vector[Numeric], predicted: Vector[Numeric]): Double = {
-  assert(actual.length == predicted.length)
-
-  val sumOfAbsoluteErrors = actual.indices.foldLeft(0.0) { (accumulated, index) =>
-    accumulated + math.abs(actual(index).value - predicted(index).value)
-  }
-
-  sumOfAbsoluteErrors / actual.length
-}
-
 def confusionMatrix(actual: Vector[Data], predicted: Vector[Data], positiveLabel: Data): Map[String, Int] = {
   assert(actual.length == predicted.length)
 
@@ -291,6 +245,51 @@ def confusionMatrix(actual: Vector[Data], predicted: Vector[Data], positiveLabel
       }
     }
   }
+}
+
+def precision(actual: Vector[Data], predicted: Vector[Data], positiveLabel: Data): Double = {
+  assert(actual.length == predicted.length)
+
+  val matrix = confusionMatrix(actual, predicted, positiveLabel)
+
+  matrix("TP").toDouble / (matrix("TP") + matrix("FP")).toDouble
+}
+
+def recall(actual: Vector[Data], predicted: Vector[Data], positiveLabel: Data): Double = {
+  assert(actual.length == predicted.length)
+
+  val matrix = confusionMatrix(actual, predicted, positiveLabel)
+
+  matrix("TP").toDouble / (matrix("TP") + matrix("FN")).toDouble
+}
+
+def f1(actual: Vector[Data], predicted: Vector[Data], positiveLabel: Data): Double = {
+  assert(actual.length == predicted.length)
+
+  val precisionValue = precision(actual, predicted, positiveLabel)
+  val recallValue = recall(actual, predicted, positiveLabel)
+
+  (precisionValue * recallValue) / (precisionValue + recallValue)
+}
+
+def rootMeanSquaredError(actual: Vector[Numeric], predicted: Vector[Numeric]): Double = {
+  assert(actual.length == predicted.length)
+
+  val sumOfSquaredErrors = actual.indices.foldLeft(0.0) { (accumulated, index) =>
+    accumulated + math.pow(actual(index).value - predicted(index).value, 2)
+  }
+
+  math.sqrt(sumOfSquaredErrors / actual.length)
+}
+
+def meanAbsoluteError(actual: Vector[Numeric], predicted: Vector[Numeric]): Double = {
+  assert(actual.length == predicted.length)
+
+  val sumOfAbsoluteErrors = actual.indices.foldLeft(0.0) { (accumulated, index) =>
+    accumulated + math.abs(actual(index).value - predicted(index).value)
+  }
+
+  sumOfAbsoluteErrors / actual.length
 }
 
 def accuracy(actual: Vector[Data], predicted: Vector[Data]): Double = {
@@ -381,7 +380,7 @@ type EvaluationMetric[T <: Data] = (Vector[T], Vector[T]) => Double
 def evaluateAlgorithmUsingTrainTestSplit[T <: Data](dataset: Dataset, algorithm: Algorithm, parameters: Parameters, evaluationMetric: EvaluationMetric[T], trainProportion: Double = 0.8, randomSeed: Int = 42) = {
   val (train, test) = trainTestSplit(dataset, trainProportion, randomSeed)
   val predicted = algorithm(train, test, parameters).asInstanceOf[Vector[T]]
-  val actual = selectColumn(test, test.length - 1).asInstanceOf[Vector[T]]
+  val actual = selectColumn(test, test.head.length - 1).asInstanceOf[Vector[T]]
 
   evaluationMetric(actual, predicted)
 }
@@ -395,7 +394,7 @@ def evaluateAlgorithmUsingCrossValidation[T <: Data](dataset: Dataset, algorithm
     test = fold
   } yield {
     val predicted = algorithm(train, test, parameters).asInstanceOf[Vector[T]]
-    val actual = selectColumn(test, test.length - 1).asInstanceOf[Vector[T]]
+    val actual = selectColumn(test, test.head.length - 1).asInstanceOf[Vector[T]]
 
     evaluationMetric(actual, predicted)
   }
@@ -580,90 +579,11 @@ def perceptron(train: Dataset, test: Dataset, parameters: Parameters) = {
   }
 }
 
-
-//def giniIndex(groups: Vector[Vector[Vector[Data]]], classValues: Vector[Data]): Double = {
-//  var gini = 0.0
-//
-//  for {
-//    c <- classValues
-//    g <- groups
-//    if g.nonEmpty
-//  } {
-//
-//    val proportion = g.count(row => row.last.asInstanceOf[Numeric].value == c.asInstanceOf[Numeric].value).toDouble / g.length
-//    gini += proportion * (1 - proportion)
-//  }
-//
-//  gini
-//}
-//
-//def testSplit(index: Int, value: Double, dataset: Dataset) = {
-//  val (left, right) = dataset.span(row => row(index).asInstanceOf[Numeric].value < value)
-//  Vector(left, right)
-//}
-//
-//def getSplit(dataset: Dataset) = {
-//  val classValues = selectColumn(dataset, dataset.head.length - 1).distinct
-//
-//  var bIndex = 999
-//  var bValue = Numeric(999)
-//  var bScore = 999.0
-//  var bGroups: Vector[Vector[Vector[Data]] = Vector.empty
-//
-//  for {
-//    index <- dataset.head.indices
-//    row <- dataset
-//  } {
-//    val groups = testSplit(index, row(index).asInstanceOf[Numeric].value, dataset)
-//    val gini = giniIndex(groups, classValues)
-//
-//    if (gini < bScore) {
-//      bIndex = index
-//      bValue = row(index).asInstanceOf[Numeric]
-//      bScore = gini
-//      bGroups = groups
-//    }
-//  }
-//
-//  Map("index" -> bIndex, "value" -> bValue, "groups" -> bGroups)
-//}
-//
-//def toTerminal(group: Vector[Vector[Data]]) = {
-//  val outcomes = group.map(_.last.asInstanceOf[Numeric].value)
-//  outcomes.distinct.maxBy(o => outcomes.count(_ == o))
-//}
-//
-//def split(node: Map[String, Any], maxDepth: Int, minSize: Int, depth: Int) = {
-//  val groups = node("groups").asInstanceOf[Vector[Vector[Vector[Data]]]]
-//  val left = groups(0)
-//  val right = groups(1)
-//
-//  if (left.isEmpty, right.isEmpty) {
-//    node("left") = toTerminal(left ++ right)
-//    node
-//  }
-//
-//  if (depth >= maxDepth) {
-//    node("left") = toTerminal(left)
-//    node("right") = toTerminal(right)
-//    node
-//  }
-//
-//  if (left.length <= minSize) {
-//    node("left") = toTerminal(left)
-//  } else {
-//    node("left") = getSplit(left)
-//    split(node("left"), maxDepth, minSize, depth - 1)
-//  }
-//
-//}
-
-
-def separateByClass(dataset: Dataset) = {
+def separateByClass(dataset: Dataset): Map[Data, Vector[Vector[Data]]] = {
   dataset.groupBy(_.last)
 }
 
-def summarizeDataset(dataset: Dataset): Vector[(Double, Double, Int)] = {
+def summarizeDataset(dataset: Dataset) = {
   val numberOfColumns = dataset.head.length
 
   val means = getColumnsMeans(dataset)
@@ -705,7 +625,7 @@ def calculateClassProbabilities(summaries: Map[Data, Vector[(Double, Double, Int
   }
 }
 
-def predict(summaries: Map[Data, Vector[(Double, Double, Int)]], row: Vector[Data]) = {
+def predict(summaries: Map[Data, Vector[(Double, Double, Int)]], row: Vector[Data]): Data = {
   val probabilities = calculateClassProbabilities(summaries, row)
 
   val (Some(bestLabel), _) = probabilities.foldLeft((None: Option[Data], -1.0)) { (bestLabelAndProb, entry) =>
@@ -731,7 +651,6 @@ def naiveBayes(train: Dataset, test: Dataset) = {
     predict(summaries, row)
   }
 }
-
 
 def euclideanDistance(firstRow: Vector[Numeric], secondRow: Vector[Numeric]) = {
   assert(firstRow.length == secondRow.length)
@@ -764,9 +683,22 @@ def predictClassification(train: Dataset, testRow: Vector[Numeric], numberOfNeig
   outputValues.maxBy(o => outputValues.count(_ == o))
 }
 
-def kNearestNeighbors(train: Dataset, test: Dataset, numberOfNeighbors: Int) = {
+def predictRegression(train: Dataset, testRow: Vector[Numeric], numberOfNeighbors: Int) = {
+  val neighbors = getNeighbors(train, testRow, numberOfNeighbors)
+  val outputValues = neighbors.map(_.last)
+
+  Numeric {
+    outputValues.foldLeft(0.0) { (total, numeric) => total + numeric.value } / outputValues.length
+  }
+}
+
+type Predictor = (Dataset, Vector[Numeric], Int) => Numeric
+def kNearestNeighbors(train: Dataset, test: Dataset, parameters: Parameters) = {
+  val numberOfNeighbors = parameters("numberOfNeighbors").asInstanceOf[Int]
+  val predictor = parameters("predictor").asInstanceOf[Predictor]
+
   test.map { row =>
-    predictClassification(train, row.asInstanceOf[Vector[Numeric]], numberOfNeighbors)
+    predictor(train, row.asInstanceOf[Vector[Numeric]], numberOfNeighbors)
   }
 }
 
@@ -791,38 +723,38 @@ def randomCodebook(train: Dataset) = {
 }
 
 def trainCodebooks(train: Dataset, numberOfCodebooks: Int, learningRate: Double, numberOfEpochs: Int) = {
-  var codebooks = (0 until numberOfEpochs).map(_ => randomCodebook(train).asInstanceOf[Vector[Numeric]]).toVector
+  var codebooks = (0 until numberOfCodebooks).map(_ => randomCodebook(train).asInstanceOf[Vector[Numeric]]).toVector
 
-  for {
-    epoch <- 1 to numberOfEpochs
-    rate = learningRate * (1.0 - (epoch / numberOfEpochs))
-    row <- train
-    numericRow = row.asInstanceOf[Vector[Numeric]]
-  } {
-    var bestMatchingUnit = getBestMatchingUnit(codebooks, numericRow)
-    val bestMatchingUnitIndex = codebooks.indexOf(bestMatchingUnit)
+  for (epoch <- 0 until numberOfEpochs) {
+    val rate = learningRate * (1.0 - (epoch / numberOfEpochs))
 
-    val rowFeaturesIndices = row.indices.init
-    rowFeaturesIndices.foreach { i =>
-      val error = numericRow(i).value - bestMatchingUnit(i).value
-      val updatedValue = Numeric {
-        if (bestMatchingUnit.last == numericRow.last) {
-          bestMatchingUnit(i).value + error * learningRate
-        } else {
-          bestMatchingUnit(i).value - error * learningRate
+    for (row <- train) {
+      val numericRow = row.asInstanceOf[Vector[Numeric]]
+      var bestMatchingUnit = getBestMatchingUnit(codebooks, numericRow)
+      val bestMatchingUnitIndex = codebooks.indexOf(bestMatchingUnit)
+
+      val rowFeaturesIndices = row.indices.take(row.length - 2)
+      rowFeaturesIndices.foreach { i =>
+        val error = numericRow(i).value - bestMatchingUnit(i).value
+        val updatedValue = Numeric {
+          if (bestMatchingUnit.last == numericRow.last) {
+            bestMatchingUnit(i).value + error * rate
+          } else {
+            bestMatchingUnit(i).value - error * rate
+          }
         }
+
+        bestMatchingUnit = updatedVector(bestMatchingUnit, updatedValue, i)
       }
 
-      bestMatchingUnit = updatedVector(bestMatchingUnit, updatedValue, i)
+      codebooks = updatedVector(codebooks, bestMatchingUnit, bestMatchingUnitIndex)
     }
-
-    codebooks = updatedVector(codebooks, bestMatchingUnit, bestMatchingUnitIndex)
   }
 
   codebooks
 }
 
-def predictWithCodebooks(codebooks: Vector[Vector[Numeric]], testRow: Vector[Numeric]) = {
+def predictWithCodebooks(codebooks: Vector[Vector[Numeric]], testRow: Vector[Numeric]): Numeric = {
   getBestMatchingUnit(codebooks, testRow).last
 }
 
@@ -837,11 +769,135 @@ def learningVectorQuantization(train: Dataset, test: Dataset, numberOfCodebooks:
 // Heads UP! Previous lines correspond to other scripts' contents.
 // NEW content starts here:
 
+sealed trait TreeNode
+type Group = Vector[Vector[Data]]
+case class InnerNode(index: Int, value: Double, groups: Option[Vector[Group]] = None, left: Option[TreeNode] = None, right: Option[TreeNode] = None) extends TreeNode
+case class TerminalNode(outcome: Numeric) extends TreeNode
+
+def testSplit(index: Int, value: Numeric, dataset: Dataset): Vector[Vector[Vector[Data]]] = {
+  val numericValue = value.value
+  val (left, right) = dataset.partition(r => getNumericValue(r(index)).get < numericValue)
+
+  Vector(left, right)
+}
+
+def giniIndex(groups: Vector[Group], classValues: Vector[Numeric]) = {
+  classValues.foldLeft(0.0) { (accumulatedGini, classValue) =>
+    groups.foldLeft(accumulatedGini) { (g, group) =>
+      if (group.nonEmpty) {
+        val proportion = group.map(_.last).count(_ == classValue).toDouble / group.length.toDouble
+        g + proportion * (1.0 - proportion)
+      } else {
+        g
+      }
+    }
+  }
+}
+
+def getSplit(dataset: Dataset) = {
+  val classValues = selectColumn(dataset, dataset.head.length - 1).distinct
+
+  var bIndex = 999
+  var bValue = 999.0
+  var bScore = 999.0
+  var bGroups = Vector.empty[Group]
+
+  for (index <- 0 until (dataset.head.length - 1)) {
+    for (row <- dataset) {
+      val groups = testSplit(index, row(index).asInstanceOf[Numeric], dataset)
+      val gini = giniIndex(groups, classValues.asInstanceOf[Vector[Numeric]])
+
+      if (gini < bScore) {
+        bIndex = index
+        bValue = row(index).asInstanceOf[Numeric].value
+        bScore = gini
+        bGroups = groups
+      }
+    }
+  }
+
+  InnerNode(index = bIndex, value = bValue, groups = Some(bGroups))
+}
+
+def toTerminal(group: Group): TerminalNode = {
+  val outcomes = group.map(_.last)
+  TerminalNode {
+    outcomes.maxBy(o => outcomes.count(_ == o)).asInstanceOf[Numeric]
+  }
+}
+
+def split(node: TreeNode, maxDepth: Int, minSize: Int, depth: Int): TreeNode = {
+  node match {
+    case terminalNode: TerminalNode =>
+      terminalNode
+
+    case innerNode @ InnerNode(index, value, Some(Vector(leftGroup, rightGroup)), _, _)
+      if leftGroup.isEmpty || rightGroup.isEmpty =>
+
+      val t = toTerminal(leftGroup ++ rightGroup)
+      innerNode.copy(left = Some(t), right = Some(t))
+
+    case innerNode: InnerNode if innerNode.groups.isDefined =>
+      val groups: Vector[Group] = innerNode.groups.get
+      val Vector(left, right) = groups
+
+      if (depth >= maxDepth) {
+        innerNode.copy(left = Some(toTerminal(left)), right = Some(toTerminal(right)))
+      } else {
+        val leftNode = if (left.lengthCompare(minSize) <= 0) {
+          innerNode.copy(left = Some(toTerminal(left)))
+        } else {
+          val n = innerNode.copy(left = Some(getSplit(left)))
+          split(n, maxDepth, minSize, depth + 1)
+        }
+
+        val rightNode = if (right.lengthCompare(minSize) <= 0) {
+          innerNode.copy(right = Some(toTerminal(right)))
+        } else {
+          val n = innerNode.copy(right = Some(getSplit(right)))
+          split(n, maxDepth, minSize, depth + 1)
+        }
+
+        innerNode.copy(left = Some(leftNode), right = Some(rightNode))
+      }
+  }
+}
+
+def buildTree(train: Dataset, maxDepth: Int, minSize: Int) = split(getSplit(train), maxDepth, minSize, 1)
+
+
+def predictWithTree(node: TreeNode, row: Vector[Numeric]): Numeric = node match {
+  case TerminalNode(outcome) => outcome
+  case i: InnerNode =>
+    if (getNumericValue(row(i.index)).get <= i.value) {
+      predictWithTree(i.left.get, row)
+    } else {
+      predictWithTree(i.right.get, row)
+    }
+}
+
+
+def decisionTree(train: Dataset, test: Dataset, parameters: Parameters) = {
+  val maxDepth = parameters("maxDepth").asInstanceOf[Int]
+  val minSize = parameters("minSize").asInstanceOf[Int]
+
+  val t = buildTree(train, maxDepth, minSize)
+
+  test.map { row =>
+    predictWithTree(t, row.asInstanceOf[Vector[Numeric]])
+  }
+}
+
+
+
+// Heads UP! Previous lines correspond to other scripts' contents.
+// NEW content starts here:
+
 type Layer = Vector[Map[String, Any]]
 type Network = Vector[Layer]
 
 def initializeNetwork(numberOfInputs: Int, numberOfHiddenUnits: Int, numberOfOutputs: Int): Network = {
-  val hiddenLayer = (0 until numberOfInputs).map { _ =>
+  val hiddenLayer = (0 until numberOfHiddenUnits).map { _ =>
     Map("weights" -> (0 to numberOfInputs).map(_ => Random.nextDouble()).toVector)
   }.toVector
 
@@ -851,6 +907,8 @@ def initializeNetwork(numberOfInputs: Int, numberOfHiddenUnits: Int, numberOfOut
 
   Vector(hiddenLayer, outputLayer)
 }
+
+initializeNetwork(2, 1, 2).foreach(println)
 
 def activate(weights: Vector[Double], inputs: Vector[Double]) = {
   val activation = weights.last
@@ -864,41 +922,59 @@ def transfer(activation: Double) = {
   1.0 / (1.0 + math.exp(-activation))
 }
 
-def forwardPropagate(network: Network, row: Vector[Numeric]): Vector[Double] = {
+// TODO Modify this
+def forwardPropagate(network: Network, row: Vector[Numeric]): (Vector[Double], Network) = {
   var inputs = row.map(_.value)
+  var updatedNetwork = network
 
   for {
-    layer <- network
+    i <- network.indices
   } {
-    val newInputs = layer.map { neuron =>
+    var layer = updatedNetwork(i)
+    val newInputs = layer.indices.map { i =>
+      var neuron = layer(i)
       val activation = activate(neuron("weights").asInstanceOf[Vector[Double]], inputs)
-      neuron("output") = transfer(activation)
+      neuron = neuron + ("output" -> transfer(activation))
+      layer = updatedVector(layer, neuron, i)
+
       neuron("output").asInstanceOf[Double]
     }
 
-    inputs = newInputs
+    inputs = newInputs.toVector
+
+    updatedNetwork = updatedVector(updatedNetwork, layer, i)
   }
 
-  inputs
+  (inputs, updatedNetwork)
 }
+
+val network: Network = Vector(
+  Vector(
+    Map("weights" -> Vector(0.864973644875332, 0.4299962390096266, 0.25159829718468507)),
+    Map("weights" -> Vector(0.8440020790298866, 0.18310892263206968, 0.34381820668252616))),
+  Vector(
+    Map("weights" -> Vector(0.7251975317621959, 0.06827255520222186))))
+
+forwardPropagate(network, Vector(Numeric(1.0), Numeric(0.0), Numeric(1.0)))
 
 def transferDerivative(output: Double) = {
   output * (1.0 - output)
 }
 
-def backPropagateError(network: Network, expected: Vector[Double]) = {
-
+def backwardPropagateError(network: Network, expected: Vector[Double]) = {
+  var updatedNetwork = network
   for {
-    i <- network.length - 1 to 0 by -1
-    isOutputLayer = i == network.indices.last
+    i <- (updatedNetwork.length - 1) to 0 by -1
+    isOutputLayer = i == updatedNetwork.indices.last
   } {
-    val layer = network(i)
+    val layer = updatedNetwork(i)
     var errors = Vector.empty[Double]
+
     if (isOutputLayer) {
       errors = layer.indices.map(i => expected(i) - layer(i)("output").asInstanceOf[Double]).toVector
     } else {
       errors = layer.indices.map { j =>
-        val error = network(i + 1).foldLeft(0.0) { (e, neuron) =>
+        val error = updatedNetwork(i + 1).foldLeft(0.0) { (e, neuron) =>
           e + neuron("weights").asInstanceOf[Vector[Double]](j) * neuron("delta").asInstanceOf[Double]
         }
 
@@ -906,23 +982,140 @@ def backPropagateError(network: Network, expected: Vector[Double]) = {
       }.toVector
     }
 
-    layer.indices.foreach(i => errors(i) * transferDerivative(layer(i)("output").asInstanceOf[Double]))
+    val newLayer = layer.indices.toVector.map { j =>
+      var neuron = layer(j)
+      neuron = neuron + ("delta" -> errors(j) * transferDerivative(neuron("output").asInstanceOf[Double]))
+      neuron
+    }
+
+    updatedNetwork = updatedVector(updatedNetwork, newLayer, i)
   }
 
-  network
+  updatedNetwork
 }
+
+backwardPropagateError(forwardPropagate(network, Vector(Numeric(1.0), Numeric(0.0), Numeric(1.0)))._2, Vector(1.0, 0.0))
 
 def updateWeights(network: Network, row: Vector[Numeric], learningRate: Double) = {
   var updatedNetwork = network
 
   for {
-    i <- network.indices
+    i <- updatedNetwork.indices
     isFirstLayer = i == 0
   } {
-    val inputs = row.init.map(_.value)
+    var inputs = row.init.map(_.value)
 
-    if (isFirstLayer) {
+    if (!isFirstLayer) {
+      inputs = network(i - 1).map(_("output").asInstanceOf[Double])
+    }
 
+    var newLayer = updatedNetwork(i)
+
+    for {
+      n <- newLayer.indices
+    } {
+      var newN: Map[String, Any] = updatedNetwork(i)(n)
+      val delta = newN("delta").asInstanceOf[Double]
+      val ws = newN("weights").asInstanceOf[Vector[Double]]
+      var x = inputs.indices.foldLeft(ws) { (w, i) =>
+        updatedVector(w, w(i) + learningRate * delta * inputs(i), i)
+      }
+
+      x = updatedVector(x, learningRate * delta + x(x.indices.last), x.indices.last)
+
+      newN = newN + ("weights" -> x)
+
+      newLayer = updatedVector(newLayer, newN, n)
+    }
+
+    updatedNetwork = updatedVector(updatedNetwork, newLayer, i)
+  }
+
+  updatedNetwork
+}
+
+def trainNetwork(network: Network, train: Dataset, learningRate: Double, numberOfEpochs: Int, numberOfOutputs: Int) = {
+  var updatedNetwork = network
+  for (e <- 1 to numberOfEpochs) {
+    for (r <- train) {
+      val (_, nn) = forwardPropagate(updatedNetwork, r.asInstanceOf[Vector[Numeric]])
+      updatedNetwork = nn
+
+      val expected = updatedVector((1 to numberOfOutputs).toVector.map(_ => 0.0), 1.0, r.last.asInstanceOf[Numeric].value.toInt)
+
+      updatedNetwork = backwardPropagateError(updatedNetwork, expected)
+      updatedNetwork = updateWeights(updatedNetwork, r.asInstanceOf[Vector[Numeric]], learningRate)
     }
   }
+
+  updatedNetwork
 }
+
+val mockDataset = Vector((2.7810836,2.550537003,0),
+  (1.465489372,2.362125076,0),
+  (3.396561688,4.400293529,0),
+  (1.38807019,1.850220317,0),
+  (3.06407232,3.005305973,0),
+  (7.627531214,2.759262235,1),
+  (5.332441248,2.088626775,1),
+  (6.922596716,1.77106367,1),
+  (8.675418651,-0.242068655,1),
+  (7.673756466,3.508563011,1)).map { case (x1, x2, y) => Vector(Numeric(x1), Numeric(x2), Numeric(y)) }
+
+val n = trainNetwork(initializeNetwork(2 ,2, 2), mockDataset, 0.5, 20, 2)
+
+def predictWithNetwork(network: Network, row: Vector[Numeric]) = {
+  val (outputs, _) = forwardPropagate(network, row)
+  outputs.indices.maxBy(outputs)
+}
+
+for (r <- mockDataset) {
+  val prediction = predictWithNetwork(n, r.asInstanceOf[Vector[Numeric]])
+  println(s"Expected=${r.last.value}, Predicted=$prediction")
+}
+
+def backPropagation(train: Dataset, test: Dataset, parameters: Parameters) = {
+  val numberOfInputs = train.head.length - 1
+  val numberOfOutputs = train.map(_.last).distinct.length
+  val learningRate = parameters("learningRate").asInstanceOf[Double]
+  val numberOfEpochs = parameters("numberOfEpochs").asInstanceOf[Int]
+  val numberOfHiddenUnits = parameters("numberOfHiddenUnits").asInstanceOf[Int]
+
+  val n: Network = trainNetwork(initializeNetwork(numberOfInputs, numberOfHiddenUnits, numberOfOutputs), train, learningRate, numberOfEpochs, numberOfOutputs)
+
+  test.map { r =>
+    Numeric(predictWithNetwork(n, r.asInstanceOf[Vector[Numeric]]))
+  }
+}
+
+val banknotePath = "/media/jesus/ADATA HV100/Blog/toy-ml/src/main/resources/data/15/seeds_dataset.csv"
+
+val rawData = loadCsv(banknotePath)
+val numberOfRows = rawData.length
+val numberOfColumns = rawData.head.length
+println(s"Number of rows in dataset: $numberOfRows")
+println(s"Number of columns in dataset: $numberOfColumns")
+
+val (data, lookUpTable) = {
+  val dataWithNumericColumns = (0 until (numberOfColumns - 1)).toVector.foldLeft(rawData) { (d, i) => textColumnToNumeric(d, i) }
+  categoricalColumnToNumeric(dataWithNumericColumns, numberOfColumns - 1)
+}
+
+val baselineAccuracy = evaluateAlgorithmUsingTrainTestSplit[Numeric](
+  data,
+  (train, test, parameters) => zeroRuleClassifier(train, test),
+  Map.empty,
+  accuracy,
+  trainProportion=0.8)
+
+println(s"Zero Rule Algorithm accuracy: $baselineAccuracy")
+
+
+val backPropagationAccuracy = evaluateAlgorithmUsingTrainTestSplit[Numeric](
+  data,
+  backPropagation,
+  Map("learningRate" -> 0.3, "numberOfEpochs" -> 500, "numberOfHiddenUnits" -> 5),
+  accuracy,
+  trainProportion=0.8)
+
+println(s"Back Propagation accuracy: $backPropagationAccuracy")
